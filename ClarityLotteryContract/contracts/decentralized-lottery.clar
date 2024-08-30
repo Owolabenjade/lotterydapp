@@ -69,5 +69,5 @@
 
 ;; Generate a pseudo-random integer based on block data
 (define-private (random-int (max-idx uint))
-    (mod (as-max-len block-height) max-idx)
+    (mod (+ block-height (get-block-info! number block-height)) max-idx)
 )
