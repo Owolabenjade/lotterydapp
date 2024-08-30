@@ -5,7 +5,7 @@
 ;; Storage variables
 (define-data-var is-lottery-active bool true)  ;; State of the lottery
 (define-data-var total-pot uint u0)  ;; Total amount of STX in the pot
-(define-data-var lottery-participants (list MAX_PARTICIPANTS principal))  ;; List of participants
+(define-data-var lottery-participants (list MAX_PARTICIPANTS principal) (list))  ;; List of participants
 
 ;; Only the contract owner can end the lottery
 (define-read-only (is-owner (sender principal))
