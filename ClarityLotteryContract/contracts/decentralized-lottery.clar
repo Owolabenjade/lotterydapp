@@ -1,27 +1,34 @@
 ;; Define constants
-(define-constant TICKET_COST u100)  ;; ticket cost is 100 microSTX
+(define-constant TICKET_COST u100)  ;; Ticket cost is 100 microSTX
+(define-constant MAX_PARTICIPANTS u200)  ;; Maximum number of participants
 
 ;; Storage variables
-(define-data-var is-lottery-active bool true)  ;; state of the lottery
-(define-data-var total-pot uint u0)  ;; total amount of STX in the pot
-(define-data-var lottery-participants (list 200 principal))  ;; list of participants, max 200 entries
+(define-data-var is-lottery-active bool true)  ;; State of the lottery
+(define-data-var total-pot uint u0)  ;; Total amount of STX in the pot
+(define-data-var lottery-participants (list MAX_PARTICIPANTS principal))  ;; List of participants
+
+;; Only the contract owner can end the lottery
+(define-read-only (is-owner (sender principal))
+    (is-eq sender tx-sender)
+)
 
 ;; Enter the lottery
 (define-public (enter-lottery)
     (begin
         ;; Check if the lottery is active
-        (asserts! (eq? (var-get is-lottery-active) true) (err u1))
+        (asserts! (var-get is-lottery-active) (err u1))
         
         ;; Check if the sent amount is equal to the ticket cost
-        (asserts! (is-eq? stx-transfer? TICKET_COST tx-sender (as-contract tx-sender)) (err u2))
+        (asserts! (>= (stx-get-balance tx-sender) TICKET_COST) (err u2))
         
-        ;; Add sender to the participants list
+        ;; Add sender to the participants list if the list is not full
         (let ((current-participants (var-get lottery-participants)))
-            (if (is-eq (len current-participants) 200)
-                (err u3)  ;; if the list is full, return error
+            (if (>= (len current-participants) MAX_PARTICIPANTS)
+                (err u3)  ;; Return error if the list is full
                 (begin
                     (var-set lottery-participants (append current-participants tx-sender))
                     (var-set total-pot (+ (var-get total-pot) TICKET_COST))
+                    (stx-transfer? TICKET_COST tx-sender (as-contract tx-sender))
                     (ok u0)
                 )
             )
@@ -32,10 +39,16 @@
 ;; Close the lottery and pick a winner
 (define-public (end-lottery-and-select-winner)
     (begin
-        ;; Only end if lottery is active
-        (asserts! (eq? (var-get is-lottery-active) true) (err u4))
+        ;; Only the contract owner can end the lottery
+        (asserts! (is-owner tx-sender) (err u4))
         
-        ;; End the lottery
+        ;; Ensure the lottery is active
+        (asserts! (var-get is-lottery-active) (err u5))
+        
+        ;; Ensure there are participants in the lottery
+        (asserts! (> (len (var-get lottery-participants)) u0) (err u6))
+
+        ;; Close the lottery
         (var-set is-lottery-active false)
 
         ;; Pick a random winner from the list of participants
@@ -55,7 +68,21 @@
     )
 )
 
-;; Auxiliary function to generate a pseudo-random index based on the block height
+;; Generate a pseudo-random index based on the block height
 (define-private (random (max-idx uint))
-    (mod (+ block-height (fold + u0 (var-get lottery-participants))) max-idx)
+    (mod (+ block-height (fold + u0 (map principal-to-uint (var-get lottery-participants)))) max-idx)
+)
+
+;; Utility function to convert a principal to uint (simplified)
+(define-private (principal-to-uint (p principal))
+    (begin
+        (fold + u0 (map char-to-uint (principal-to-ascii p)))
+    )
+)
+
+;; Utility function to convert a char to uint
+(define-private (char-to-uint (c char))
+    (begin
+        (as-max-uint u20) ;; Simplified: You should map characters to numeric equivalents.
+    )
 )
