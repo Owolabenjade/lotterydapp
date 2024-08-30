@@ -14,23 +14,22 @@
 
 ;; Enter the lottery
 (define-public (enter-lottery)
-    (begin
-        ;; Check if the lottery is active
-        (asserts! (var-get is-lottery-active) (err u1))
-        
-        ;; Check if the sent amount is equal to the ticket cost
-        (asserts! (is-eq (stx-transfer? TICKET_COST tx-sender (as-contract tx-sender)) (ok true)) (err u2))
-        
-        ;; Add sender to the participants list if the list is not full
-        (let ((current-participants (var-get lottery-participants)))
-            (if (>= (len current-participants) MAX_PARTICIPANTS)
-                (err u3)  ;; Return error if the list is full
-                (begin
-                    (var-set lottery-participants (append current-participants tx-sender))
-                    (var-set total-pot (+ (var-get total-pot) TICKET_COST))
-                    (ok u0)
-                )
-            )
+    (let ((current-participants (var-get lottery-participants)))
+        (begin
+            ;; Check if the lottery is active
+            (asserts! (var-get is-lottery-active) (err u1))
+            
+            ;; Check if the list is not full
+            (asserts! (< (len current-participants) MAX_PARTICIPANTS) (err u3))
+            
+            ;; Check if the sent amount is equal to the ticket cost
+            (asserts! (is-eq (stx-transfer? TICKET_COST tx-sender (as-contract tx-sender)) (ok true)) (err u2))
+            
+            ;; Add sender to the participants list
+            (var-set lottery-participants 
+                (concat current-participants (list tx-sender)))
+            (var-set total-pot (+ (var-get total-pot) TICKET_COST))
+            (ok u0)
         )
     )
 )
