@@ -19,7 +19,7 @@
         (asserts! (var-get is-lottery-active) (err u1))
         
         ;; Check if the sent amount is equal to the ticket cost
-        (asserts! (>= (stx-get-balance tx-sender) TICKET_COST) (err u2))
+        (asserts! (is-eq (stx-transfer? TICKET_COST tx-sender (as-contract tx-sender)) (ok true)) (err u2))
         
         ;; Add sender to the participants list if the list is not full
         (let ((current-participants (var-get lottery-participants)))
@@ -28,7 +28,6 @@
                 (begin
                     (var-set lottery-participants (append current-participants tx-sender))
                     (var-set total-pot (+ (var-get total-pot) TICKET_COST))
-                    (stx-transfer? TICKET_COST tx-sender (as-contract tx-sender))
                     (ok u0)
                 )
             )
@@ -52,7 +51,7 @@
         (var-set is-lottery-active false)
 
         ;; Pick a random winner from the list of participants
-        (let ((winner-index (random (len (var-get lottery-participants)))))
+        (let ((winner-index (random-int (len (var-get lottery-participants)))))
             (let ((selected-winner (element-at (var-get lottery-participants) winner-index)))
                 (begin
                     ;; Transfer the pot to the winner
@@ -68,21 +67,7 @@
     )
 )
 
-;; Generate a pseudo-random index based on the block height
-(define-private (random (max-idx uint))
-    (mod (+ block-height (fold + u0 (map principal-to-uint (var-get lottery-participants)))) max-idx)
-)
-
-;; Utility function to convert a principal to uint (simplified)
-(define-private (principal-to-uint (p principal))
-    (begin
-        (fold + u0 (map char-to-uint (principal-to-ascii p)))
-    )
-)
-
-;; Utility function to convert a char to uint
-(define-private (char-to-uint (c char))
-    (begin
-        (as-max-uint u20) ;; Simplified: You should map characters to numeric equivalents.
-    )
+;; Generate a pseudo-random integer based on block data
+(define-private (random-int (max-idx uint))
+    (mod (as-max-len block-height) max-idx)
 )
