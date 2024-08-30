@@ -14,20 +14,27 @@
 
 ;; Enter the lottery
 (define-public (enter-lottery)
-    (let ((current-participants (var-get lottery-participants)))
+    (let (
+        (current-participants (var-get lottery-participants))
+        (current-length (len current-participants))
+    )
         (begin
             ;; Check if the lottery is active
             (asserts! (var-get is-lottery-active) (err u1))
             
             ;; Check if the list is not full
-            (asserts! (< (len current-participants) MAX_PARTICIPANTS) (err u3))
+            (asserts! (< current-length MAX_PARTICIPANTS) (err u3))
             
             ;; Check if the sent amount is equal to the ticket cost
             (asserts! (is-eq (stx-transfer? TICKET_COST tx-sender (as-contract tx-sender)) (ok true)) (err u2))
             
-            ;; Add sender to the participants list
+            ;; Add sender to the participants list, ensuring we don't exceed MAX_PARTICIPANTS
             (var-set lottery-participants 
-                (concat current-participants (list tx-sender)))
+                (unwrap-panic (as-max-len? 
+                    (concat current-participants (list tx-sender)) 
+                    u200
+                ))
+            )
             (var-set total-pot (+ (var-get total-pot) TICKET_COST))
             (ok u0)
         )
@@ -50,8 +57,11 @@
         (var-set is-lottery-active false)
 
         ;; Pick a random winner from the list of participants
-        (let ((winner-index (random-int (len (var-get lottery-participants)))))
-            (let ((selected-winner (unwrap-panic (element-at (var-get lottery-participants) winner-index))))
+        (let (
+            (participants (var-get lottery-participants))
+            (winner-index (random-int (len participants)))
+        )
+            (let ((selected-winner (unwrap-panic (element-at participants winner-index))))
                 (begin
                     ;; Transfer the pot to the winner
                     (try! (as-contract (stx-transfer? (var-get total-pot) tx-sender selected-winner)))
