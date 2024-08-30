@@ -52,10 +52,10 @@
 
         ;; Pick a random winner from the list of participants
         (let ((winner-index (random-int (len (var-get lottery-participants)))))
-            (let ((selected-winner (element-at (var-get lottery-participants) winner-index)))
+            (let ((selected-winner (unwrap-panic (element-at (var-get lottery-participants) winner-index))))
                 (begin
                     ;; Transfer the pot to the winner
-                    (stx-transfer? (var-get total-pot) (as-contract tx-sender) selected-winner)
+                    (try! (as-contract (stx-transfer? (var-get total-pot) tx-sender selected-winner)))
                     ;; Reset the lottery for the next round
                     (var-set lottery-participants (list))
                     (var-set total-pot u0)
@@ -67,7 +67,7 @@
     )
 )
 
-;; Generate a pseudo-random integer based on block data
+;; Generate a pseudo-random integer based on block height and burn block height
 (define-private (random-int (max-idx uint))
-    (mod (+ block-height (get-block-info! number block-height)) max-idx)
+    (mod (+ block-height burn-block-height) max-idx)
 )
